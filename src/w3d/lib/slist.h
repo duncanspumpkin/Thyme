@@ -62,21 +62,105 @@ public:
         m_tailNode = nullptr;
     };
     virtual ~SList() { Remove_All(); };
-    SLNode<T> *Head() const;
-    SLNode<T> *Tail() const;
-    SLNode<T> *Find_Node(T *data) const;
+    SLNode<T> *Head() const { return m_headNode; };
+    SLNode<T> *Tail() const { return m_tailNode; };
+    SLNode<T> *Find_Node(T *data) const
+    {
+        if (Is_Empty()) {
+            return nullptr;
+        }
+        for (auto *node = m_headNode; node != nullptr; node = node->Next()) {
+            if (node->Data() == data) {
+                return node;
+            }
+        }
+        return nullptr;
+    };
     virtual bool Add_Head(T *data);
     virtual bool Add_Head(SList<T> &list);
     virtual bool Add_Tail(T *data);
     virtual bool Add_Tail(SList<T> &list);
-    virtual T *Remove_Head();
-    virtual T *Remove_Tail();
-    virtual bool Remove(T *element);
-    virtual void Remove_All();
+    virtual T *Remove_Head()
+    {
+        if (Is_Empty()) {
+            return nullptr;
+        }
+        auto *head = m_headNode;
+        m_headNode = head->Next();
+        if (m_headNode == nullptr) {
+            m_tailNode = nullptr;
+        }
+        auto *ret = head->Data();
+        delete head;
+        return ret;
+    }
+    virtual T *Remove_Tail()
+    {
+        if (Is_Empty()) {
+            return nullptr;
+        }
+        auto *ret = m_tailNode->Data();
+        return Remove(ret) ? ret : nullptr;
+    };
+    virtual bool Remove(T *element)
+    {
+        if (element == nullptr) {
+            return false;
+        }
+
+        if (Is_Empty()) {
+            return false;
+        }
+
+        if (m_headNode->Data() == element) {
+            return Remove_Head() == nullptr;
+        }
+
+        auto *node = m_headNode;
+        auto *previous = node;
+        while (node != nullptr) {
+            if (node->Data() == element) {
+                break;
+            }
+            previous = node;
+            node = node->Next();
+        }
+        node = previous->Next();
+        if (node == nullptr) {
+            return false;
+        }
+        if (node->Data() != element) {
+            return false;
+        }
+        previous->Set_Next(node->Next());
+        if (node == m_tailNode) {
+            m_tailNode = previous;
+        }
+        delete node;
+        return true;
+    }
+    virtual void Remove_All()
+    {
+        auto *node = m_headNode;
+        while (node != nullptr) {
+            auto *next = node->Next();
+            delete node;
+            node = next;
+        }
+    }
     virtual bool Insert_Before(T *newnode, T *oldnode = nullptr);
     virtual bool Insert_After(T *newnode, T *oldnode = nullptr);
-    virtual bool Is_Empty() const;
-    virtual long Get_Count() const;
+    virtual bool Is_Empty() const { return m_headNode == nullptr; };
+    virtual long Get_Count() const
+    {
+        long count = 0;
+        auto *node = m_headNode;
+        while (node != nullptr) {
+            node = node->Next();
+            count++;
+        }
+        return count;
+    };
 
 private:
     SLNode<T> *m_headNode;
