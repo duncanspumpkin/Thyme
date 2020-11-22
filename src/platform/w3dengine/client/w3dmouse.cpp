@@ -13,6 +13,7 @@
  *            LICENSE
  */
 #include "w3dmouse.h"
+#include "assetmgr.h"
 #include "critsection.h"
 #include "dx8wrapper.h"
 #include "rtsutils.h"
@@ -104,120 +105,119 @@ void W3DMouse::Draw()
 // 0x007AD650
 void W3DMouse::Set_Cursor(MouseCursor cursor)
 {
-    {
-        CriticalSectionClass::LockClass lock(g_mouseCriticalSection);
 
-        m_cursorDirection = 0;
-        if (m_currentRedrawMode == RedrawMode::RM_WINDOWS) {
-            m_currentD3DCursor = MouseCursor::CURSOR_NONE;
-            m_currentW3DCursor = MouseCursor::CURSOR_NONE;
-            m_currentPolyCursor = MouseCursor::CURSOR_NONE;
-            Set_Cursor_Direction(cursor);
-            if (m_setWinCursor == true) {
-                Win32Mouse::Set_Cursor(cursor);
-            }
-            m_currentCursor = cursor;
-            return;
-        }
+    CriticalSectionClass::LockClass lock(g_mouseCriticalSection);
 
-        Set_Mouse_Text(cursor);
-        if (m_currentCursor == cursor && m_currentD3DCursor == cursor) {
-            return;
-        }
-
-        switch (m_currentRedrawMode) {
-            case RedrawMode::RM_DX8: {
-#ifdef BUILD_WITH_D3D8
-#ifdef PLATFORM_WINDOWS
-                SetCursor(NULL); // Make Win32Cursor Invisible
-#endif
-                auto *device = DX8Wrapper::Get_D3D_Device8();
-                if (device == nullptr) {
-                    break;
-                }
-
-                device->ShowCursor(false);
-
-                if (m_currentD3DCursor != cursor && s_mouseThreadIsDrawing == false) {
-                    Release_D3D_Cursor_Texture(m_currentD3DCursor);
-                    Load_D3D_Cursor_Texture(cursor);
-                }
-
-                if (m_D3DCursorSurfaces[0] == nullptr) {
-                    break;
-                }
-
-                m_hotSpotX = m_cursorInfo[cursor].hot_spot.x;
-                m_hotSpotY = m_cursorInfo[cursor].hot_spot.y;
-                unk4 = 0;
-                unk7 = m_cursorInfo[cursor].fps * 0.001f;
-                device->SetCursorProperties(m_hotSpotX, m_hotSpotY, m_D3DCursorSurfaces[0]->Get_D3D_Surface());
-                device->ShowCursor(true);
-                unk5 = static_cast<int32_t>(unk4);
-                m_currentD3DCursor = cursor;
-                m_D3DCursorLastDrawn = rts::Get_Time();
-#endif
-                break;
-            }
-
-            case RedrawMode::RM_POLYGON: {
-#ifdef PLATFORM_WINDOWS
-                SetCursor(NULL); // Make Win32Cursor Invisible
-#endif
-                m_currentD3DCursor = MouseCursor::CURSOR_NONE;
-                m_currentW3DCursor = MouseCursor::CURSOR_NONE;
-                m_currentPolyCursor = cursor;
-                m_hotSpotX = m_cursorInfo[cursor].hot_spot.x;
-                m_hotSpotY = m_cursorInfo[cursor].hot_spot.y;
-                break;
-            }
-            case RedrawMode::RM_W3D: {
-#ifdef PLATFORM_WINDOWS
-                SetCursor(NULL); // Make Win32Cursor Invisible
-#endif
-                m_currentD3DCursor = MouseCursor::CURSOR_NONE;
-                m_currentPolyCursor = MouseCursor::CURSOR_NONE;
-                if (m_currentW3DCursor == cursor) {
-                    break;
-                }
-
-                if (s_W3DMouseAssets2[MouseCursor::CURSOR_NORMAL] == nullptr) {
-                    Init_W3D_Assets();
-                    if (s_W3DMouseAssets2[MouseCursor::CURSOR_NORMAL] == nullptr) {
-                        break;
-                    }
-                }
-
-                auto *current_w3d_asset = s_W3DMouseAssets2[m_currentW3DCursor];
-
-                auto *scene = W3DDisplay::Get_3DInterfaceScene();
-                if (current_w3d_asset != nullptr) {
-                    scene->Remove_Render_Object(current_w3d_asset);
-                }
-
-                m_currentW3DCursor = cursor;
-                auto *new_w3d_asset = s_W3DMouseAssets2[cursor];
-                if (new_w3d_asset == nullptr) {
-                    break;
-                }
-
-                scene->Add_Render_Object(new_w3d_asset);
-                if (m_cursorInfo[cursor].loop == false) {
-                    break;
-                }
-
-                if (s_W3DMouseAssets1[cursor] == nullptr) {
-                    break;
-                }
-
-                s_W3DMouseAssets2[cursor]->Set_Animation(s_W3DMouseAssets1[cursor], 0.0f, RenderObjClass::ANIM_MODE_ONCE);
-                break;
-            }
-            default:
-                break;
+    m_cursorDirection = 0;
+    if (m_currentRedrawMode == RedrawMode::RM_WINDOWS) {
+        m_currentD3DCursor = MouseCursor::CURSOR_NONE;
+        m_currentW3DCursor = MouseCursor::CURSOR_NONE;
+        m_currentPolyCursor = MouseCursor::CURSOR_NONE;
+        Set_Cursor_Direction(cursor);
+        if (m_setWinCursor == true) {
+            Win32Mouse::Set_Cursor(cursor);
         }
         m_currentCursor = cursor;
+        return;
     }
+
+    Set_Mouse_Text(cursor);
+    if (m_currentCursor == cursor && m_currentD3DCursor == cursor) {
+        return;
+    }
+
+    switch (m_currentRedrawMode) {
+        case RedrawMode::RM_DX8: {
+#ifdef BUILD_WITH_D3D8
+#ifdef PLATFORM_WINDOWS
+            SetCursor(NULL); // Make Win32Cursor Invisible
+#endif
+            auto *device = DX8Wrapper::Get_D3D_Device8();
+            if (device == nullptr) {
+                break;
+            }
+
+            device->ShowCursor(false);
+
+            if (m_currentD3DCursor != cursor && s_mouseThreadIsDrawing == false) {
+                Release_D3D_Cursor_Texture(m_currentD3DCursor);
+                Load_D3D_Cursor_Texture(cursor);
+            }
+
+            if (m_D3DCursorSurfaces[0] == nullptr) {
+                break;
+            }
+
+            m_hotSpotX = m_cursorInfo[cursor].hot_spot.x;
+            m_hotSpotY = m_cursorInfo[cursor].hot_spot.y;
+            unk4 = 0;
+            unk7 = m_cursorInfo[cursor].fps * 0.001f;
+            device->SetCursorProperties(m_hotSpotX, m_hotSpotY, m_D3DCursorSurfaces[0]->Get_D3D_Surface());
+            device->ShowCursor(true);
+            unk5 = static_cast<int32_t>(unk4);
+            m_currentD3DCursor = cursor;
+            m_D3DCursorLastDrawn = rts::Get_Time();
+#endif
+            break;
+        }
+
+        case RedrawMode::RM_POLYGON: {
+#ifdef PLATFORM_WINDOWS
+            SetCursor(NULL); // Make Win32Cursor Invisible
+#endif
+            m_currentD3DCursor = MouseCursor::CURSOR_NONE;
+            m_currentW3DCursor = MouseCursor::CURSOR_NONE;
+            m_currentPolyCursor = cursor;
+            m_hotSpotX = m_cursorInfo[cursor].hot_spot.x;
+            m_hotSpotY = m_cursorInfo[cursor].hot_spot.y;
+            break;
+        }
+        case RedrawMode::RM_W3D: {
+#ifdef PLATFORM_WINDOWS
+            SetCursor(NULL); // Make Win32Cursor Invisible
+#endif
+            m_currentD3DCursor = MouseCursor::CURSOR_NONE;
+            m_currentPolyCursor = MouseCursor::CURSOR_NONE;
+            if (m_currentW3DCursor == cursor) {
+                break;
+            }
+
+            if (s_W3DMouseAssets2[MouseCursor::CURSOR_NORMAL] == nullptr) {
+                Init_W3D_Assets();
+                if (s_W3DMouseAssets2[MouseCursor::CURSOR_NORMAL] == nullptr) {
+                    break;
+                }
+            }
+
+            auto *current_w3d_asset = s_W3DMouseAssets2[m_currentW3DCursor];
+
+            auto *scene = W3DDisplay::Get_3DInterfaceScene();
+            if (current_w3d_asset != nullptr) {
+                scene->Remove_Render_Object(current_w3d_asset);
+            }
+
+            m_currentW3DCursor = cursor;
+            auto *new_w3d_asset = s_W3DMouseAssets2[cursor];
+            if (new_w3d_asset == nullptr) {
+                break;
+            }
+
+            scene->Add_Render_Object(new_w3d_asset);
+            if (m_cursorInfo[cursor].loop == false) {
+                break;
+            }
+
+            if (s_W3DMouseAssets1[cursor] == nullptr) {
+                break;
+            }
+
+            s_W3DMouseAssets2[cursor]->Set_Animation(s_W3DMouseAssets1[cursor], 0.0f, RenderObjClass::ANIM_MODE_ONCE);
+            break;
+        }
+        default:
+            break;
+    }
+    m_currentCursor = cursor;
 }
 
 // 0x007ADF60
@@ -304,10 +304,30 @@ void W3DMouse::Free_D3D_Assets()
 // 0x007AD230
 void W3DMouse::Init_D3D_Assets()
 {
-    // TODO: Requires W3DDisplay::s_assetManager
-#ifdef GAME_DLL
-    Call_Method<void, W3DMouse>(0x007AD230, this);
-#endif
+    CriticalSectionClass::LockClass lock(g_mouseCriticalSection);
+    if (s_mouseThreadIsDrawing) {
+        return;
+    }
+
+    if (m_currentRedrawMode != RedrawMode::RM_DX8) {
+        return;
+    }
+
+    if (s_D3DMouseAssets[CURSOR_TARGET][0] != nullptr) {
+        return;
+    }
+
+    auto *asset_manager = W3DAssetManager::Get_Instance();
+    if (asset_manager == nullptr) {
+        return;
+    }
+
+    for (auto i = 0; i < CURSOR_COUNT; ++i) {
+        for (auto j = 0; j < 21; ++j) {
+            s_D3DMouseAssets[i][j] = nullptr;
+        }
+        m_D3DCursorSurfaces[i] = nullptr;
+    }
 }
 
 // 0x007AD580
@@ -322,6 +342,49 @@ void W3DMouse::Free_W3D_Assets()
 // 0x007AD330
 void W3DMouse::Init_W3D_Assets()
 {
+    CriticalSectionClass::LockClass lock(g_mouseCriticalSection);
+    if (s_mouseThreadIsDrawing) {
+        return;
+    }
+
+    auto *asset_manager = W3DDisplay::Get_AssetManager();
+    if (s_W3DMouseAssets2[CURSOR_NORMAL] == nullptr && asset_manager != nullptr) {
+        for (auto i = 1; i < CURSOR_COUNT; ++i) {
+            const auto &cursor_info = m_cursorInfo[i];
+            auto &asset = s_W3DMouseAssets2[i];
+            if (cursor_info.w3d_model_name.Is_Empty()) {
+                continue;
+            }
+
+            float scale = cursor_info.w3d_scale;
+            if (m_orthoCamera) {
+                scale = cursor_info.w3d_scale * m_orthoZoom;
+            }
+
+            asset = asset_manager->Create_Render_Obj(cursor_info.w3d_model_name, scale, 0, nullptr, nullptr);
+            if (asset != nullptr) {
+                asset->Set_Position({ 0.0f, 0.0f, -1.0f });
+            }
+        }
+    }
+    if (s_W3DMouseAssets1[CURSOR_NORMAL] == nullptr && asset_manager != nullptr) {
+        for (auto i = 1; i < CURSOR_COUNT; ++i) {
+            const auto &cursor_info = m_cursorInfo[i];
+            auto &asset = s_W3DMouseAssets1[i];
+            auto &asset_2 = s_W3DMouseAssets2[i];
+            if (cursor_info.w3d_anim_name.Is_Empty()) {
+                continue;
+            }
+
+            asset = asset_manager->Get_HAnim(cursor_info.w3d_anim_name);
+            if (asset != nullptr && asset_2 != nullptr) {
+                asset_2->Set_Animation(
+                    asset, 0.0f, cursor_info.loop ? RenderObjClass::ANIM_MODE_LOOP : RenderObjClass::ANIM_MODE_ONCE);
+            }
+        }
+    }
+
+    // 0x007AD496
     // TODO: Requires W3DDisplay::s_assetManager
 #ifdef GAME_DLL
     Call_Method<void, W3DMouse>(0x007AD330, this);
