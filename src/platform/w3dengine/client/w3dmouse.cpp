@@ -14,6 +14,7 @@
  */
 #include "w3dmouse.h"
 #include "assetmgr.h"
+#include "camera.h"
 #include "critsection.h"
 #include "dx8wrapper.h"
 #include "rtsutils.h"
@@ -56,7 +57,7 @@ W3DMouse::W3DMouse() :
     unk4(0),
     unk5(0),
     m_D3DCursorSurfaceCount(0),
-    m_camera(0),
+    m_camera(nullptr),
     m_setWinCursor(false),
     unk7(0.001f)
 {
@@ -384,11 +385,13 @@ void W3DMouse::Init_W3D_Assets()
         }
     }
 
-    // 0x007AD496
-    // TODO: Requires W3DDisplay::s_assetManager
-#ifdef GAME_DLL
-    Call_Method<void, W3DMouse>(0x007AD330, this);
-#endif
+    m_camera = new CameraClass;
+    m_camera->Set_Position({ 0.0f, 1.0f, 1.0f });
+    m_camera->Set_View_Plane({ -1.0f, -1.0f }, { 1.0f, 1.0f });
+    m_camera->Set_Clip_Planes(0.995f, 20.0f);
+    if (m_orthoCamera) {
+        m_camera->Set_Projection_Type(CameraClass::ProjectionType::ORTHO);
+    }
 }
 
 // 0x007AD060

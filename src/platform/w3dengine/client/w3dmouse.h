@@ -63,7 +63,7 @@ private:
     int32_t m_D3DCursorLastDrawn;
     float unk7; // refersh rate related fps * 0.001
     bool m_setWinCursor;
-    int32_t m_camera;
+    CameraClass* m_camera;
     MouseCursor m_currentW3DCursor;
     MouseCursor m_currentPolyCursor;
 
