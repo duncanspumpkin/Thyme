@@ -17,6 +17,7 @@
 #include "camera.h"
 #include "critsection.h"
 #include "dx8wrapper.h"
+#include "hanim.h"
 #include "rtsutils.h"
 #include "scene.h"
 #include "texture.h"
@@ -326,18 +327,36 @@ void W3DMouse::Init_D3D_Assets()
     for (auto i = 0; i < CURSOR_COUNT; ++i) {
         for (auto j = 0; j < 21; ++j) {
             s_D3DMouseAssets[i][j] = nullptr;
+            m_D3DCursorSurfaces[j] = nullptr;
         }
-        m_D3DCursorSurfaces[i] = nullptr;
     }
 }
 
 // 0x007AD580
 void W3DMouse::Free_W3D_Assets()
 {
-    // TODO: Requires W3DDisplay::s_3DInterfaceScene
-#ifdef GAME_DLL
-    Call_Method<void, W3DMouse>(0x007AD580, this);
-#endif
+    for (auto i = 0; i < CURSOR_COUNT; ++i) {
+        auto *interface_scene = W3DDisplay::Get_3DInterfaceScene();
+        auto &hanim = s_W3DMouseAssets1[i];
+        auto &robj = s_W3DMouseAssets2[i];
+        if (interface_scene != nullptr) {
+            interface_scene->Remove_Render_Object(robj);
+        }
+        if (robj != nullptr) {
+
+            robj->Release_Ref();
+        }
+        robj = nullptr;
+        if (hanim != nullptr) {
+            hanim->Release_Ref();
+        }
+        hanim = nullptr;
+    }
+
+    if (m_camera != nullptr) {
+        m_camera->Release_Ref();
+    }
+    m_camera = nullptr;
 }
 
 // 0x007AD330
@@ -407,21 +426,52 @@ void W3DMouse::Release_D3D_Cursor_Texture(MouseCursor cursor)
             surface->Release_Ref();
             surface = nullptr;
         }
-        auto *d3d_surface = s_D3DMouseAssets[cursor][i];
+        auto &d3d_surface = s_D3DMouseAssets[cursor][i];
         if (d3d_surface != nullptr) {
             d3d_surface->Release_Ref();
-            s_D3DMouseAssets[cursor][i] = nullptr;
+            d3d_surface = nullptr;
         }
     }
 }
 
 // 0x007AD0E0
-void W3DMouse::Load_D3D_Cursor_Texture(MouseCursor cursor)
+bool W3DMouse::Load_D3D_Cursor_Texture(MouseCursor cursor)
 {
-    // TODO: Requires W3DAssetManager
-#ifdef GAME_DLL
-    Call_Method<void, W3DMouse>(0x007AD0E0, this);
-#endif
+    if (cursor == MouseCursor::CURSOR_NONE) {
+        return true;
+    }
+
+    if (s_D3DMouseAssets[cursor][0] != nullptr) {
+        return true;
+    }
+
+    if (m_cursorInfo[cursor].frames == 0) {
+        return false;
+    }
+    auto *asset_manager = W3DAssetManager::Get_Instance();
+
+    auto *texture_name = m_cursorInfo[cursor].texture_name.Str();
+    auto frames = std::min(m_cursorInfo[cursor].frames, 21);
+    m_D3DCursorSurfaceCount = frames;
+
+    if (frames == 1) {
+        char file_name[64]{};
+        sprintf_s(file_name, "%s.tga", texture_name);
+        auto *texture = asset_manager->Get_Texture(file_name);
+        s_D3DMouseAssets[cursor][0] = texture;
+        m_D3DCursorSurfaces[0] = texture->Get_Surface_Level(0);
+        return true;
+    }
+
+    for (auto i = 0; i < frames; ++i) {
+        auto &asset = s_D3DMouseAssets[cursor][i];
+        char file_name[64]{};
+        sprintf_s(file_name, "%s%04d.tga", texture_name, i);
+        auto *texture = asset_manager->Get_Texture(file_name);
+        asset = texture;
+        m_D3DCursorSurfaces[i] = texture->Get_Surface_Level(0);
+    }
+    return true;
 }
 
 // 0x007ACFB0
